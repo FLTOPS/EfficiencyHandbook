@@ -1,18 +1,73 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>APZ Efficiency Handbook</title>
-  <link rel="manifest" href="manifest.json">
+  <title>PDF.js Viewer Example</title>
+  <style>
+    body { margin: 0; padding: 0; font-family: sans-serif; }
+    #controls { text-align: center; margin: 10px; }
+    button { margin: 0 5px; padding: 5px 10px; }
+    #pdf-canvas { display: block; margin: 0 auto; border: 1px solid #ccc; }
+  </style>
 </head>
 <body>
-  <iframe src="document.pdf" width="100%" height="800"></iframe>
+  <div id="controls">
+    <button id="prev">Previous Page</button>
+    <span id="page-info"></span>
+    <button id="next">Next Page</button>
+  </div>
+  <canvas id="pdf-canvas"></canvas>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js')
-        .then(() => console.log('Service Worker registered'));
+  <!-- Load PDF.js as ES Module -->
+  <script type="module">
+    import * as pdfjsLib from './pdf.mjs';
+
+    // Set worker file path
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs';
+
+    const url = 'document.pdf';   // PDF file in the same repository
+    let pdfDoc = null;
+    let currentPage = 1;
+    const canvas = document.getElementById('pdf-canvas');
+    const ctx = canvas.getContext('2d');
+    const pageInfo = document.getElementById('page-info');
+
+    // Load PDF
+    pdfjsLib.getDocument(url).promise.then(pdf => {
+      pdfDoc = pdf;
+      pageInfo.textContent = `Page ${currentPage} / ${pdfDoc.numPages}`;
+      renderPage(currentPage);
+    });
+
+    // Render a specific page
+    function renderPage(num) {
+      pdfDoc.getPage(num).then(page => {
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        page.render(renderContext);
+        pageInfo.textContent = `Page ${num} / ${pdfDoc.numPages}`;
+      });
     }
+
+    // Button events
+    document.getElementById('prev').addEventListener('click', () => {
+      if (currentPage <= 1) return;
+      currentPage--;
+      renderPage(currentPage);
+    });
+
+    document.getElementById('next').addEventListener('click', () => {
+      if (currentPage >= pdfDoc.numPages) return;
+      currentPage++;
+      renderPage(currentPage);
+    });
   </script>
 </body>
 </html>
